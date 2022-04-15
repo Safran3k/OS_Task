@@ -1,0 +1,131 @@
+#!/bin/bash
+
+#get datas about ETH, BTC 
+
+getData(){
+ curl "https://api.coinlore.net/api/ticker/?id=90,80" -o btc_eth.json --silent 
+ echo -e "Data has been downloaded!\n" 
+}
+
+
+#List some data about ETH, BTC
+
+writeSomeData(){
+ if [ ! -f btc_eth.json ]
+ then
+  echo "The btc_eth.json file does not exists!"
+  exit 1
+ fi
+
+ symbol_btc=$(cat btc_eth.json | jq .[0].symbol)
+ name_btc=$(cat btc_eth.json | jq .[0].name)
+ price_usd_btc=$(cat btc_eth.json | jq .[0].price_usd)
+
+ symbol_eth=$(cat btc_eth.json | jq .[1].symbol)
+ name_eth=$(cat btc_eth.json | jq .[1].name)
+ price_usd_eth=$(cat btc_eth.json | jq .[1].price_usd)
+
+ echo -e "Symbol: $symbol_btc\nName: $name_btc\nPrice (USD): $price_usd_btc\n"
+ echo -e "Symbol: $symbol_eth\nName: $name_eth\nPrice (USD): $price_usd_eth"
+}
+
+
+#Exchange the ETH, BTC current price from USD to HUF
+
+exchangePrice(){
+ curl "https://api.frankfurter.app/latest?from=USD" -o  price.json --silent
+
+ huf_price=$(cat price.json | jq .rates.HUF) #floot
+ btc_price=$(cat btc_eth.json | jq .[0].price_usd) #string
+ eth_price=$(cat btc_eth.json | jq .[1].price_usd) #string
+
+ pattern='[^0-9]+([0-9]+)'
+ btc_number=${btc_price%.*}
+ eth_number=${eth_price%.*}
+ huf_int=${huf_price%.*}
+
+ [[ $btc_number =~ $pattern ]]
+ btc_int="${BASH_REMATCH[1]}"
+ [[ $eth_number =~ $pattern ]]
+ eth_int="${BASH_REMATCH[1]}"
+
+ btcusd_to_huf=$(($btc_int * $huf_int))
+ ethusd_to_huf=$(($eth_int * $huf_int))
+ s_btc_price=$(printf "%'.2f" $btcusd_to_huf)
+ separated_btc=${s_btc_price%,*}
+ s_eth_price=$(printf "%'.2f" $ethusd_to_huf)
+ separated_eth=${s_eth_price%,*}
+
+ echo "The exchange rate of Bitcoin in HUF: ~"$separated_btc "Ft"
+ echo "The exchange rate of Ethereum in HUF: ~"$separated_eth "Ft"
+}
+
+
+#Switch between ETH and BTC
+
+getDataAboutBTC(){
+ cat btc_eth.json | jq .[0]
+}
+
+getDataAboutETH(){
+ cat btc_eth.json | jq .[1]
+}
+
+
+helper(){
+ echo -e "-d: Get the data file.\n-w: Write some information about BTC/ETH\n-c: Exchange the prices of the currencies.\n-b: Write all the information about BTC.\n-e: Write all the information about ETH."
+}
+
+#Specify parameters for the script
+
+while getopts :hdwcbe PARAM;
+do
+ case $PARAM in
+
+  h )
+     helper
+     exit 0
+     ;;
+
+  d )
+     getData
+     ;;
+
+  w )
+     writeSomeData
+     ;;
+
+  c )
+     exchangePrice
+     ;;
+
+  b )
+     getDataAboutBTC
+     ;;
+
+  e )
+     getDataAboutETH
+     ;;
+
+  \? )
+     echo "Invalid option: $OPTARG" 1>&2
+     ;;
+
+  : )
+     echo "Invalid option: $OPTARG requires an argument" 1>&2
+     ;;
+
+ esac
+done
+shift $(($OPTIND - 1))
+
+
+#getData
+
+#writeSomeData
+
+#exchangePrice
+
+#getDataAboutBTC
+
+#getDataAboutETH
